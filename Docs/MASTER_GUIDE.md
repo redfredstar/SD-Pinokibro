@@ -221,3 +221,167 @@ The project is organized into five distinct stages, each comprising granular dev
 *   **[ ] State Management**: Does the system provide the capability to track the persistent state of applications (e.g., `INSTALLING`, `INSTALLED`, `ERROR`) in a database?
 *   **[ ] Interactive Input**: Does the system provide the capability to handle an `input` step in an installer, pausing execution to request data from the user via the UI?
 *   **[ ] Library Management**: Does the system provide the capability to list all installed applications and perform lifecycle actions on them, such as `uninstall`?
+---
+---
+
+### **Stage 3: The Launch Sequence (Phases 13-18)**
+
+**Overarching Objective**: To build the complete, end-to-end system for running an installed Pinokio application. This stage covers the entire lifecycle of an active application: initiating the process, intelligently detecting the web interface it exposes, creating a secure public tunnel for access in a cloud environment, and providing the user with clear controls to monitor and terminate the application. This is the culmination of all previous stages, delivering the project's core promise: one-click access to complex AI applications.
+
+---
+
+#### **Phase P13: Part A: In-Repo Launch Engine (Core Process Management)**
+*   **Objective**: To build the foundational engine component responsible for correctly launching an installed application in its isolated environment as a persistent, background process.
+*   **In-Repo Engine Development**:
+    1.  **Launch Manager (`app/core/P13_LaunchManager.py`)**: Develop a new, dedicated, headless class to handle the application launch process.
+    2.  **`launch_app` method**: This will be the primary method. Its orchestrated logic will be precise and sequential:
+        1.  Query the `P08_StateManager` to get the app's installation path and confirm its status is `INSTALLED`.
+        2.  Find the app's primary "run" or "start" script (e.g., `start.json`, `run.js`).
+        3.  Translate the script using the `P03_Translator`.
+        4.  Get the correct environment run prefix from the `P04_EnvironmentManager`.
+        5.  Execute the launch command as a **background daemon process** using the `P02_ProcessManager`.
+        6.  Update the app's status to `RUNNING` in the `P08_StateManager` and store the process's PID.
+*   **Success Criteria**: A headless engine function that can correctly start any installed Pinokio application as a persistent background process in its proper isolated environment.
+
+---
+
+#### **Phase P14: Part B: In-Repo Launch Engine (WebUI & Tunneling)**
+*   **Objective**: To add the critical capability of automatically detecting an application's web interface and exposing it to the internet through a secure public tunnel.
+*   **In-Repo Engine Development**:
+    1.  **WebUI Detector (`app/utils/P14_WebUIDetector.py`)**: Create a specialized utility class with a library of regex patterns designed to match the startup log messages of 15+ common web frameworks (Gradio, ComfyUI, etc.). Its `find_url(line)` method will return the local URL if a match is found.
+    2.  **Tunnel Manager (`app/core/P14_TunnelManager.py`)**: Develop a class to abstract tunnel creation. Its `create_tunnel(local_url)` method will use `pyngrok` to start a tunnel to the specified port and return the public URL. It will use the hardcoded token from the `SECURITY_MEMO.md` directive.
+    3.  **Engine Integration**: Enhance the `P13_LaunchManager.launch_app` method. It will now create a `detect_and_tunnel(line)` callback. This callback will be passed to the `P02_ProcessManager` alongside the `stream_to_terminal` callback. It will use the `P14_WebUIDetector` on every line of output. If a URL is found, it will immediately call the `P14_TunnelManager` and save the resulting public URL to the database via the `P08_StateManager`.
+*   **Success Criteria**: The launch engine can now not only run an app but also intelligently watch its startup process, automatically detect its web interface, and expose it to the internet.
+
+---
+
+#### **Phase P15: Part C: In-Notebook Launch UI (Initiation & Monitoring)**
+*   **Objective**: To connect the launch engine to the "My Library" UI, allowing the user to initiate and monitor the entire application startup sequence.
+*   **In-Notebook UI Development**:
+    1.  **Activate "Start" Button**: The `on_click` handler for the "Start" button in the "My Library" tab will be made functional.
+    2.  **Event Handling & Threading**: The handler will call the `P13_LaunchManager.launch_app` method in a **separate background thread** to keep the UI responsive.
+    3.  **Live Monitoring**: All output from the launching and running application will automatically stream to the main "Terminal" tab, providing immediate feedback.
+    4.  **State Change**: After calling `launch_app`, the UI will call the master `refresh_ui()` function, which will query the new `RUNNING` state and instantly update the UI (e.g., changing "Start" to "Stop").
+*   **Success Criteria**: A user can click "Start" on an installed app, monitor its entire startup sequence live in the terminal, and see the UI instantly reflect the application's new running state.
+
+---
+
+#### **Phase P16: Part D: In-Notebook Launch UI (URL Display & Control)**
+*   **Objective**: To complete the user's journey by displaying the final, public URL for the application's interface and providing the necessary controls to manage the running application.
+*   **In-Notebook UI Development**:
+    1.  **"Active Tunnels" Tab**: This tab will be made functional. A new background process in the notebook will periodically poll the `P08_StateManager` database for active tunnel URLs and display them as clickable `ipywidgets.HTML` links.
+    2.  **Activate "Stop" Button**: The `on_click` handler for the "Stop" button will call a new `stop_app(app_name)` method in the `P13_LaunchManager`. This engine method will retrieve the PID from the database, terminate the process gracefully, and update the app's status to `STOPPED`. The UI will then refresh.
+*   **Success Criteria**: The user has a complete end-to-end operational loop: they can start an app, get a public, clickable URL to its interface, and stop the app when finished.
+
+---
+
+#### **Phase P17: The Gatekeeper (Post-Launch Validation & Certification)**
+*   **Objective**: To implement the final step of the user workflow: a system for validating that a launched application is not just running, but is *functional*, and allowing the user to "certify" it for future confidence.
+*   **In-Repo Engine Development**:
+    1.  **Validation Logic**: The `P13_LaunchManager` will be enhanced with a simple, automated health check (e.g., an HTTP `GET` request to the detected local URL) to confirm the web server is responsive before creating a tunnel.
+    2.  **Certification Method**: A new method, `certify_app(app_name)`, will be added to the `P11_LibraryManager` to set a `certified = TRUE` boolean flag for that application in the database.
+*   **In-Notebook UI Development**:
+    1.  **Certification UI**: In the "My Library," a "Certified ✅" badge will be displayed for apps with the flag set. A "Mark as Certified" button will appear for installed apps, allowing the user to manually confirm full functionality. This fulfills the UI blueprint requirement.
+*   **Success Criteria**: The application library now has a record of which applications have been proven to work flawlessly, giving the user confidence in their stability.
+
+---
+
+#### **Phase P18: Stage 3 Audit, Lint & Documentation Review**
+*   **Objective**: To conduct a final, rigorous review of the entire launch system, solidifying the project's core functionality.
+*   **Audit Tasks**:
+    1.  Lint and review all code from P13-P17.
+    2.  Perform a comprehensive end-to-end test of the entire launch sequence: start, verify URL, stop.
+    3.  Complete the "Stage 3 Validation Checklist" below.
+*   **Documentation Tasks**:
+    1.  Update `CAPTAINS_LOG.md` with a summary of Stage 3.
+    2.  Update the `INDEX.md` Script Index with all new files from this stage (`P13_LaunchManager`, `P14_WebUIDetector`, `P14_TunnelManager`).
+*   **Success Criteria**: A complete, documented, and tested system for launching and managing Pinokio applications. The core functionality of the project is now fully implemented.
+
+---
+### **Stage 3 Validation Checklist**
+*(To be completed by the AI agent during the Phase P18 Audit.)*
+
+*   **[ ] Application Launch**: Does the system provide the capability to start an installed application as a persistent background process within its correct virtual environment?
+*   **[ ] WebUI Detection**: Does the system now have the capability to monitor the output of a running application and automatically detect the local URL and port of its web interface?
+*   **[ ] Tunneling**: Does the system provide the capability to take a local URL and programmatically create a public tunnel (e.g., with ngrok), returning a public URL?
+*   **[ ] Process Control**: Does the system provide the capability to stop a running application by its name, correctly identifying its PID and terminating the process?
+*   **[ ] User Certification**: Does the system provide the capability for a user to manually certify an application as fully functional, and is this state persisted in the library?
+
+---
+---
+
+### **Stage 4: Final Integration & Polish (Phases 19-20)**
+
+**Overarching Objective**: To transition the project from a collection of powerful but disconnected engine modules into a unified, intuitive, and seamless user experience. This stage is dedicated to the meticulous work of weaving all previously built systems together, refining the UI, and preparing the project for the final testing gauntlet.
+
+---
+
+#### **Phase P19: Full System Integration & User Experience Polish**
+*   **Objective**: To ensure every component works together harmoniously and to refine the UI to be robust and user-friendly.
+*   **In-Notebook UI Development**:
+    1.  **Centralized `refresh_ui()` Function**: A master function will be developed that is responsible for redrawing the entire `ipywidgets` interface based on the current state in the database. It will be triggered after every state-changing action.
+    2.  **Robust Concurrent Operation Management**: A job queue (`queue.Queue`) and a single background worker thread will be implemented. All user actions (Install, Start, etc.) will be pushed to this queue and executed serially to prevent race conditions and keep the UI responsive. The UI will be disabled while a job is active.
+    3.  **UX Polish**: Refine the `ipywidgets` layout using nested `VBox`/`HBox` widgets and `Accordion` for the library. Implement enhanced feedback with descriptive status labels and helpful "empty state" messages.
+    4.  **Error Propagation**: The background worker will wrap all engine calls in a `try...except` block. On failure, it will print the full traceback to the "Terminal" tab and display a high-level error message in the main UI.
+*   **Success Criteria**: The UI is fully state-driven, handles concurrent operations safely, provides excellent user feedback, and correctly propagates all errors.
+
+---
+
+#### **Phase P20: Stage 4 Audit & Final Handover Documentation**
+*   **Objective**: To perform a holistic review of the now-fully-integrated application and to produce the final, canonical documentation.
+*   **Audit Tasks**:
+    1.  **Full Functional Audit**: A manual, click-by-click verification of every feature and user story.
+    2.  **Codebase Audit**: A final review of the entire `/app/` directory and `launcher.ipynb` for consistency, documentation quality, and any remaining hardcoded values.
+    3.  **UX Audit**: A qualitative review of the application's flow for intuitiveness and clarity.
+    4.  Complete the "Stage 4 Validation Checklist" below.
+*   **Documentation Tasks**:
+    1.  **Finalize `INDEX.md` and `CAPTAINS_LOG.md`**.
+    2.  Create the final handover documents: `Architecture_Diagram.md`, `User_Guide.md`, `Developer_Guide.md`, `Function_Inventory.md`, and `Decision_Log.md`.
+*   **Success Criteria**: The project is declared "feature complete" and is ready for the Stage 5 Testing Gauntlet.
+
+---
+### **Stage 4 Validation Checklist**
+*(To be completed by the AI agent during the Phase P20 Audit.)*
+
+*   **[ ] System Cohesion**: Does the system operate as a single, cohesive application, with all engine modules and UI components working together seamlessly?
+*   **[ ] State Synchronization**: Is the UI a perfect and immediate reflection of the backend state stored in the database, updating correctly after every action?
+*   **[ ] Concurrency Safety**: Does the job queue and worker thread system correctly serialize user actions, preventing race conditions and keeping the UI responsive at all times?
+*   **[ ] User Experience**: Is the user interface intuitive, providing clear feedback, helpful error messages, and a polished user journey from discovery to launch?
+
+---
+---
+
+### **Stage 5: The Testing Gauntlet & Project Completion (Phases T1-T4)**
+
+**Overarching Objective**: To subject the "feature complete" application to a rigorous, multi-faceted, and uncompromising testing protocol to prove its resilience, adaptability, and adherence to its core philosophies.
+
+---
+
+#### **Phase T1: Test Environment Design**
+*   **Objective**: To invent a diverse set of testing methodologies that validate the system against a wide range of challenging, real-world scenarios.
+*   **Task**: Create the `docs/T1_Test_Environment_Designs.md` document, formally proposing and detailing five completely unique methods for end-to-end testing (e.g., "Clean Slate Colab Marathon," "Resource Starvation Chamber," "Platform Chaos Gauntlet," "Corrupted State Recovery Drill," "Headless Orchestrator Simulation").
+*   **Success Criteria**: The document contains five distinct, well-defined, and actionable test plans.
+
+---
+
+#### **Phase T2: Critical Analysis & Selection**
+*   **Objective**: To critically evaluate the designed tests and select the three that provide the most comprehensive validation.
+*   **Task**: Create the `docs/T2_Critique_And_Selection.md` document. Perform a pros and cons analysis for each of the five designs, formally rejecting two with clear justification, and declaring the final three as the official gauntlet.
+*   **Success Criteria**: A final selection of three test plans is made, with precise execution plans and measurable success criteria defined for each.
+
+---
+
+#### **Phase T3: The Gauntlet Run**
+*   **Objective**: To execute the chosen tests with precision and objectivity, capturing all diagnostic information.
+*   **Task**: Provision the necessary cloud environments and run each of the three selected tests sequentially. All terminal output and logs must be meticulously captured. A test is **100% successful ONLY if the entire "search-to-launch-to-usage" cycle is completed without ANY unexpected errors or manual intervention.**
+*   **Failure Loop**: If all three tests fail, the gauntlet is a failure. The process loops back to T1 to design new tests informed by the failures. This cycle repeats until a successful run is achieved.
+*   **Success Criteria**: At least one of the three gauntlet tests achieves 100% success.
+
+---
+
+#### **Phase T4: Project Completion & Post-Mortem**
+*   **Objective**: To formalize the project's conclusion and capture the valuable knowledge gained.
+*   **Task**:
+    1.  **Declaration of Completion**: As soon as a single gauntlet test is 100% successful, the project is officially declared **COMPLETE**.
+    2.  **Post-Mortem Report**: Write the final `docs/T4_Post_Mortem.md` document, including a project summary, a candid analysis of what went right and wrong, key learnings, and potential future work (like the Streamlit UI).
+*   **Success Criteria**: The Post-Mortem document is completed and signed off, formally concluding the PinokioCloud Rebuild project.
