@@ -107,15 +107,19 @@ The project is organized into five distinct stages, each comprising granular dev
 
 ---
 
-#### **Phase P05: The App Analyzer (Pre-Installation Engine)**
-*   **Objective**: To build the intelligence that allows the system to perform a "pre-flight check" on any application, informing the user of its requirements before installation begins.
+#### **Phase P05 (Revised): The Librarian & Search Engine**
+*   **Objective**: To build the core engine for intelligent application discovery and the first functional version of the "Discover" tab UI that utilizes it.
 *   **In-Repo Engine Development**:
-    1.  **Analyzer Module (`app/utils/P05_AppAnalyzer.py`)**: Develop this as a static analysis tool. Its primary method will take the standardized Python recipe from the `P03_Translator` as input and will not execute any commands.
-    2.  **Metadata Extraction**: It will iterate through the recipe data structure and use pattern matching to extract pre-flight metadata: required environment type, key dependencies, resource hints (VRAM, disk space), and `daemon: true` flags.
+    1.  **Search Engine (`app/core/P05_SearchEngine.py`)**: This is a **new, critical file**. A `SearchEngine` class will be developed.
+        *   Its `__init__` method will load `cleaned_pinokio_apps.json` into an efficient in-memory data structure.
+        *   It will contain a private `_calculate_score()` method to implement the weighted ranking logic (scoring matches in `name`, `tags`, and `description` differently).
+        *   It will expose a public `search(query, filters)` method that returns a sorted list of application objects based on relevance.
+    2.  **App Analyzer (`app/utils/P05_AppAnalyzer.py`)**: (Original P05) No change in its functionality. It remains a static analysis tool for providing a "pre-flight check" on a *single, selected* application.
 *   **In-Notebook UI Development**:
-    1.  Build the first functional version of the "Discover" tab, loading the application list from `apps.json`.
-    2.  The UI will be wired to orchestrate the sequence on user selection: `select app` -> `call P03_Translator` -> `call P05_AppAnalyzer` -> `display formatted metadata in the details pane`.
-*   **Success Criteria**: A user can select any app in the "Discover" tab and immediately see a clear, human-readable summary of its technical requirements in the UI.
+    1.  **"Discover" Tab Implementation**: Build the complete "Discover" tab as specified in the UI blueprint.
+    2.  **Engine Instantiation**: In the notebook's initialization cell, the `P05_SearchEngine` will be instantiated, loading the app data into memory for fast querying.
+    3.  **UI Wiring**: The `Text` search bar and filter widgets will be wired to an event handler that calls the `search_engine.search()` method on every change. The UI will then dynamically update the results list. The details pane will still use the `P05_AppAnalyzer` to show pre-flight info for the selected app from the results.
+*   **Success Criteria**: The "Discover" tab is fully functional. The user can filter by category and tags, and the text search provides fast, relevance-ranked results based on the weighted algorithm.
 
 ---
 
