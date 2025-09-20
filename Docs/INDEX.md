@@ -44,7 +44,8 @@ To ensure a complete and accurate understanding of the project's goals, architec
 *(This section will be populated with file details at the conclusion of each Stage Audit, as mandated by `RULES.md`)*
 
 ### **Stage 1: System Foundation & Core Engines (Phases P01-P06)**
-*   *(To be populated at the end of Phase P06)*
+*   **`App/Core/p04_environment_manager.py`** - **P04 Environment Manager** - The core environment management engine implementing the Conda-first, venv fallback strategy. Provides methods for creating virtual environments and generating execution prefixes based on platform detection. Includes comprehensive error handling with full tracebacks and follows the Maximum Debug philosophy.
+*   **`App/Test/P04-Test_EnvironmentManager.py`** - **P04 Environment Manager Test** - Comprehensive test suite for the P04_EnvironmentManager class. Tests platform detection, environment creation (both Conda and venv), run prefix generation, and error handling scenarios. Includes callback function testing for output streaming.
 
 ### **Stage 2: The Installation Gauntlet (Phases P07-P12)**
 *   *(To be populated at the end of Phase P12)*
