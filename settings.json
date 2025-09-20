@@ -1,0 +1,37 @@
+{
+   
+   "chat.mcp.discovery.enabled": true,
+   "kilocode.logging.level": "debug",
+   "explorer.confirmDelete": false,
+   "editor.semanticTokenColorCustomizations": {
+       
+   },
+   "github.copilot.chat.codesearch.enabled": true,
+   "github.copilot.chat.generateTests.codeLens": true,
+   "chat.tools.autoApprove": true,
+   "github.copilot.chat.notebook.followCellExecution.enabled": true,
+   "typescript.tsserver.web.projectWideIntellisense.suppressSemanticErrors": true,
+   "websearch.useSearchResultsDirectly": true,
+   "github.copilot.advanced": {
+       
+   },
+   "terminal.integrated.enablePersistentSessions": false,
+   "chat.agent.maxRequests": 200,
+   "chat.renderRelatedFiles": true,
+   "inlineChat.enableV2": true,
+   "github.copilot.chat.codeGeneration.instructions": [
+       
+   ],
+   "git.defaultCloneDirectory": "c:\\Users\\Greepo\\Documents\\GitHub",
+   "git.autofetch": true,
+   "git.confirmSync": false,
+   "git.enableSmartCommit": true,
+   "git.enableStatusBarSync": true,
+   "terminal.integrated.defaultProfile.windows": "PowerShell",
+   "terminal.integrated.profiles.windows": {
+       "PowerShell": {
+           "source": "PowerShell",
+           "icon": "terminal-powershell"
+       }
+   }
+}
