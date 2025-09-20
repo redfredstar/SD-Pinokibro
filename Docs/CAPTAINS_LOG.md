@@ -1,4 +1,4 @@
-````markdown
+`
 # CAPTAINS_LOG.md - The Live Handover & Changelog
 
 ## **PREAMBLE: THE PROJECT'S MEMORY**
@@ -19,7 +19,7 @@ Its primary purpose is to solve the critical problem of context loss between wor
 
 ### **SECTION 2: ANATOMY OF THE LOG (THE STRUCTURE)**
 
-The log is a single markdown file with a strict, reverse-chronological structure. The newest information is always at the very top.
+The log is a single  file with a strict, reverse-chronological structure. The newest information is always at the very top.
 
 #### **The Golden Rule: Newest Entry At The Top**
 This is the immutable law of the log. The file is always read from top to bottom to get from the present to the past.
@@ -28,7 +28,7 @@ This is the immutable law of the log. The file is always read from top to bottom
 This block is the "live-fire zone." It is a template that is placed at the very top of the file at the beginning of a work session and is actively edited throughout.
 
 **Template:**
-```markdown
+
 ## 🔴 CURRENT SESSION - YYYY-MM-DD
 
 * **Agent**: [Name of the current AI agent]
@@ -43,7 +43,7 @@ This block is the "live-fire zone." It is a template that is placed at the very 
 
 * **[HH:MM]**: [Detailed description of action, problem, or decision.]
 * **[HH:MM]**: [Another detailed entry.]
-````
+`
 
 #### **The "Previous Sessions" Archive**
 
@@ -51,7 +51,7 @@ This is the immutable, historical record of the project. It is a collection of f
 
 **Structure:**
 
-```markdown
+
 ---
 ## 🟢 PREVIOUS SESSIONS (Reverse Chronological)
 
@@ -68,7 +68,7 @@ This is the immutable, historical record of the project. It is a collection of f
 
 ### ✅ SESSION ENDED - YYYY-MM-DD (Older)
 * ...
-```
+
 
 -----
 
@@ -103,7 +103,7 @@ You, the AI agent, will follow this protocol without deviation.
 
 This example demonstrates the expected level of quality and detail for a complete session log.
 
-```markdown
+
 ---
 ## 🟢 PREVIOUS SESSIONS (Reverse Chronological)
 
@@ -134,7 +134,7 @@ This example demonstrates the expected level of quality and detail for a complet
 ---
 #### **Log Entries**
 * ...
-```
+
 
 -----
 
@@ -194,5 +194,4 @@ This example demonstrates the expected level of quality and detail for a complet
 
 <!-- end list -->
 
-```
-```
+
