@@ -17,8 +17,8 @@ app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, app_dir)
 
 # Import the modules directly from their paths
-from App.Utils.P01_CloudDetector import CloudDetector
-from App.Core.P04_EnvironmentManager import EnvironmentManager
+from App.Utils.p01_cloud_detector import CloudDetector
+from App.Core.p04_environment_manager import EnvironmentManager
 
 
 class TestEnvironmentManager:
@@ -32,11 +32,11 @@ class TestEnvironmentManager:
     
     def setup(self):
         """Set up test environment"""
-        print("🧪 Setting up test environment...")
+        print("Setting up test environment...")
         
         # Create temporary directory for testing
         self.temp_dir = tempfile.mkdtemp(prefix="pinokio_test_")
-        print(f"📁 Created temporary test directory: {self.temp_dir}")
+        print(f"Created temporary test directory: {self.temp_dir}")
         
         # Initialize components
         self.cloud_detector = CloudDetector()
@@ -238,7 +238,7 @@ class TestEnvironmentManager:
     
     def run_all_tests(self):
         """Run all tests"""
-        print("🚀 Starting EnvironmentManager test suite...")
+        print("Starting EnvironmentManager test suite...")
         print("=" * 60)
         
         self.setup()
