@@ -1,4 +1,3 @@
-```markdown
 # AI_VM_TESTING_GUIDE.md - The Proving Grounds
 
 ## **PREAMBLE: THE SELF-RELIANCE MANDATE**

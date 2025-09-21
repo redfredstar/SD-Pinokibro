@@ -1,255 +1,238 @@
-# PINOKIO_SCROLLS.md - The Ancient Texts
+# PINOKIO_SCROLLS.md - The Ancient Knowledge
 
-## **PREAMBLE: THE TECHNICAL COMPENDIUM**
+## **PREAMBLE: THE COMPRESSED WISDOM**
 
-This document is the **definitive, token-efficient, and highly focused technical reference** for the original Pinokio scripting language and API. It is not a user guide, a tutorial, or a philosophical text. It is a practical, stripped-down compendium designed exclusively for you, the AI development agent, to use as a primary reference when implementing the PinokioCloud emulation engine.
-
-All non-essential information—including desktop installation instructions, community links, introductory narratives, and troubleshooting for the desktop application—has been surgically removed. What remains is the pure, concentrated knowledge required to accurately replicate the functionality of the Pinokio v1 ecosystem.
+This document contains the essential, token-efficient knowledge extracted from the original Pinokio documentation. It serves as a quick reference for core concepts and API patterns, preserving the critical understanding needed to work with Pinokio applications while maintaining the rebuild's focus on the new architecture.
 
 ---
 
-### **INTRODUCTION: THE DESKTOP VS. CLOUD PARADIGM**
+### **SECTION 1: THE PINOKIO WAY - CORE CONCEPTS**
 
-The very existence of the PinokioCloud project is necessitated by the fundamental differences between a persistent, user-controlled desktop environment and a temporary, restricted cloud notebook environment. Understanding these differences is critical to implementing the API correctly.
+#### **1.1 The Pinokio Philosophy**
+Pinokio is a simple, powerful application installation and management system designed for AI/ML workflows. It uses JavaScript-based installers that define a series of steps to download, configure, and run applications in isolated environments.
 
-*   **Environment Context**:
-    *   **Desktop**: Assumes a persistent environment with full system access, a stable file system, and native process management.
-    *   **Cloud Notebook**: Operates in an **ephemeral**, containerized environment. Storage can be temporary, processes are tied to a session, and direct system access is limited.
-*   **File System**:
-    *   **Desktop**: Can access any path on the local machine (e.g., `/home/user/`).
-    *   **Cloud Notebook**: Is restricted to a specific workspace (e.g., `/content/`, `/workspace/`). **Therefore, our engine's `fs.*` methods must be built on the `P01_PathMapper` to correctly translate paths.**
-*   **Process Management**:
-    *   **Desktop**: Can spawn true background daemons that persist after the main application closes.
-    *   **Cloud Notebook**: Processes are session-bound. A "daemon" in our context is a process that outlives the script that started it but will be terminated when the notebook session ends. Our `P02_ProcessManager` must manage this lifecycle.
-*   **Networking**:
-    *   **Desktop**: Can easily expose services on `localhost` for the user to access directly. Tunneling is optional for sharing.
-    *   **Cloud Notebook**: `localhost` is inaccessible from the user's browser. **Therefore, tunneling is mandatory for any application with a web UI.** Our `P14_TunnelManager` is a critical, not optional, component.
+#### **1.2 Application Structure**
+A Pinokio application consists of:
+- **Directory Structure**: Organized with `config.js`, `install.js`, `run.js`, and other assets
+- **Configuration**: `config.js` defines metadata, dependencies, and UI elements
+- **Installation**: `install.js` contains the installation script using Pinokio API calls
+- **Execution**: `run.js` defines how to launch the application after installation
 
-This document details the API as it was designed for the desktop. Your mission is to re-implement these capabilities, adapting them to overcome the challenges of the cloud notebook paradigm.
+#### **1.3 The Pinokio API**
+The Pinokio API provides a set of functions for common operations in install scripts:
+
+```javascript
+// Shell execution
+shell.run(command, options)
+shell.exec(command, options)
+
+// File system operations
+fs.download(url, path, options)
+fs.copy(source, destination)
+fs.write(path, content)
+fs.read(path)
+fs.mkdir(path)
+fs.rm(path)
+
+// Git operations
+git.clone(url, path, options)
+git.pull(path)
+
+// User interaction
+input.prompt(message, options)
+input.select(message, choices, options)
+
+// Environment management
+env.create(name, type)
+env.activate(name)
+```
 
 ---
 
-### **SECTION 1: CORE CONCEPTS & FILE STRUCTURE**
+### **SECTION 2: INSTALLER PATTERNS & TRANSLATION**
 
-This section provides a concise overview of the essential files that constitute a Pinokio project. This is the foundational knowledge required to understand how scripts are structured and launched.
+#### **2.1 Common Installation Patterns**
 
-*   **1.1 Script Files (`.json` or `.js`)**
-    *   **Purpose**: The heart of any Pinokio application. These files contain the sequence of operations to be executed.
-    *   **Format**: Can be either declarative JSON or programmatic JavaScript.
-    *   **Core Syntax (`.json`)**:
-        ```json
+**Pattern 1: Basic Download and Setup**
+```javascript
+// Original JavaScript
+shell.run("wget https://example.com/app.tar.gz");
+shell.run("tar -xzf app.tar.gz");
+shell.run("cd app && ./setup.sh");
+
+// Translated to Python recipe
+[
+    {"step_type": "shell", "command": "wget https://example.com/app.tar.gz"},
+    {"step_type": "shell", "command": "tar -xzf app.tar.gz"},
+    {"step_type": "shell", "command": "cd app && ./setup.sh"}
+]
+```
+
+**Pattern 2: Git Repository with Dependencies**
+```javascript
+// Original JavaScript
+git.clone("https://github.com/user/repo.git", "repo");
+shell.run("cd repo && pip install -r requirements.txt");
+
+// Translated to Python recipe
+[
+    {"step_type": "git", "url": "https://github.com/user/repo.git", "path": "repo"},
+    {"step_type": "shell", "command": "cd repo && pip install -r requirements.txt"}
+]
+```
+
+**Pattern 3: Environment Creation**
+```javascript
+// Original JavaScript
+env.create("myenv", "python3");
+env.activate("myenv");
+shell.run("pip install torch torchvision");
+
+// Translated to Python recipe
+[
+    {"step_type": "env_create", "name": "myenv", "type": "python3"},
+    {"step_type": "env_activate", "name": "myenv"},
+    {"step_type": "shell", "command": "pip install torch torchvision"}
+]
+```
+
+#### **2.2 File Operations with Checksums**
+```javascript
+// Original JavaScript
+fs.download("https://example.com/large_file.bin", "data.bin", {
+    checksum: "sha256:abc123...",
+    onprogress: (percent) => console.log(`${percent}%`)
+});
+
+// Translated to Python recipe
+[
+    {
+        "step_type": "fs_download",
+        "url": "https://example.com/large_file.bin",
+        "path": "data.bin",
+        "checksum": "sha256:abc123..."
+    }
+]
+```
+
+---
+
+### **SECTION 3: CONFIGURATION STRUCTURE**
+
+#### **3.1 Basic config.js Format**
+```javascript
+module.exports = {
+    title: "My Application",
+    description: "A sample Pinokio application",
+    icon: "icon.png",
+    menu: [
         {
-          "version": "4.0",
-          "run": [ /* Array of operation steps */ ],
-          "daemon": true,
-          "env": [ "REQUIRED_ENV_VAR_1" ]
+            icon: "fa-solid fa-plug",
+            text: "Install",
+            href: "install.js"
+        },
+        {
+            icon: "fa-solid fa-power-off",
+            text: "Start",
+            href: "run.js"
         }
-        ```
-    *   **Key Attributes**:
-        *   `run`: An array of JSON objects, where each object is a single step (an API call) to be executed sequentially.
-        *   `daemon`: A boolean. If `true`, the final long-running process in the `run` array will not be terminated when the script finishes. This is essential for web servers and background services.
-        *   `env`: An array of strings. Each string is the name of an environment variable that the Pinokio system will ensure is set before executing the script, prompting the user if necessary.
+    ],
+    platform: {
+        os: "linux",
+        arch: "x64"
+    }
+};
+```
 
-*   **1.2 Launcher (`pinokio.js`)**
-    *   **Purpose**: The user interface definition file. It uses JavaScript to dynamically generate the menu of actions a user can take.
-    *   **Core Syntax**:
-        ```javascript
-        module.exports = {
-          "version": "4.0",
-          "menu": async (kernel) => {
-            // JS logic to check system state (e.g., is app installed? is it running?)
-            // Returns an array of menu item objects.
-            return [{
-              "html": "Clickable Menu Item Text (can include HTML)",
-              "href": "script_to_run.json" // Runs a script
-            }]
-          }
+#### **3.2 Advanced Configuration with Dependencies**
+```javascript
+module.exports = {
+    title: "AI Application",
+    description: "Advanced AI tool with GPU support",
+    icon: "ai.png",
+    menu: [
+        {
+            icon: "fa-solid fa-download",
+            text: "Install",
+            href: "install.js"
+        },
+        {
+            icon: "fa-solid fa-play",
+            text: "Run",
+            href: "run.js",
+            params: {
+                env: "aienv",
+                command: "python app.py"
+            }
         }
-        ```
-    *   **Key Attributes**:
-        *   `menu`: A function (often `async`) that receives the `kernel` object as an argument. This function's logic determines what menu items are displayed to the user. It must return an array of menu item objects.
-
-*   **1.3 Configuration (`pinokio.json`)**
-    *   **Purpose**: A metadata file that stores display information for the project, such as its title, description, and icon. Our system will read this to populate the UI.
-
-*   **1.4 Environment (`ENVIRONMENT`)**
-    *   **Purpose**: A simple text file in the standard Unix `.env` format (`KEY=VALUE`) for storing persistent, project-specific environment variables. Our engine must load this file and inject its variables into the execution context of all scripts.
+    ],
+    dependencies: [
+        "python3",
+        "git",
+        "wget"
+    ],
+    requirements: {
+        gpu: true,
+        ram: "8GB"
+    }
+};
+```
 
 ---
 
-### **SECTION 2: THE SCRIPTING LANGUAGE - COMPLETE API REFERENCE**
+### **SECTION 4: APPLICATION CATEGORIES**
 
-This is the core technical specification of the Pinokio API. Each method that can be called from a script's `run` array is detailed here. Your engine must re-implement the behavior of each of these methods.
+Pinokio applications are typically organized into categories:
 
-#### **2.1 `shell.run` - Command Execution**
-*   **Description**: The most fundamental method. Executes any shell command.
-*   **Syntax**:
-    ```json
-    {
-      "method": "shell.run",
-      "params": {
-        "message": "<string | array of strings>",
-        "path": "<optional: working directory path>",
-        "env": { /* optional: object of env vars */ },
-        "venv": "<optional: path to venv>",
-        "conda": "<optional: conda env name>",
-        "on": [{
-          "event": "/regex_pattern_to_match_in_output/",
-          "done": true
-        }],
-        "sudo": false
-      }
-    }
-    ```
-*   **Parameters**:
-    *   `message`: A single command string or an array of strings to be executed sequentially.
-    *   `path`: The working directory from which to execute the command. Defaults to the script's root.
-    *   `env`: An object of key-value pairs to be set as environment variables for this specific command.
-    *   `venv`: Path to a Python virtual environment to activate before running the command.
-    *   `conda`: Name of a Conda environment to activate before running the command.
-    *   `on`: An array of event handlers to monitor the command's real-time output. This is critical for managing long-running services.
-        *   `event`: A regex pattern to match against `stdout` or `stderr`.
-        *   `done`: If `true`, the script execution will proceed to the next step once the event is matched, but the underlying process will be left running. This is used in conjunction with `daemon: true` for starting servers.
-    *   `sudo`: If `true`, the command will be executed with administrator privileges.
+- **AI/ML**: Machine learning frameworks, training tools, inference engines
+- **Development**: Programming environments, IDEs, development tools
+- **Productivity**: Office applications, utilities, system tools
+- **Media**: Image/video processing, audio tools, viewers
+- **Gaming**: Game engines, emulators, game-related tools
 
-#### **2.2 `fs.*` - File System Operations**
-*   **Description**: A suite of platform-agnostic functions for interacting with the file system.
-*   **Methods**:
-    *   `fs.write`: Writes text to a file. Params: `path`, `text`.
-    *   `fs.read`: Reads the content of a file. Params: `path`.
-    *   `fs.rm`: Deletes a file or directory. Params: `path`.
-    *   `fs.copy`: Copies a file or directory. Params: `src`, `dest`.
-    *   `fs.download`: Downloads a file from a URL. Params: `uri`, `dir`.
-    *   `fs.link`: Creates symbolic links, the basis of the virtual drive system. Params: `src`, `dest`.
-    *   `fs.open`: Opens a file or folder in the system's default application. (Note: May have limited utility in a headless cloud environment).
-    *   `fs.cat`: Prints the contents of a file to the terminal log.
-
-#### **2.3 `script.*` - Script Orchestration**
-*   **Description**: Methods for managing the lifecycle of other Pinokio scripts.
-*   **Methods**:
-    *   `script.start`: Starts another script. Can pass parameters to the target script. Params: `uri`, `params`.
-    *   `script.stop`: Stops a running script. Params: `uri`.
-    *   `script.return`: Used inside a script to return a value to a calling script. Params: `value`.
-    *   `script.download`: Downloads a Pinokio project from a git repository.
-
-#### **2.4 `json.*` - JSON Data Management**
-*   **Description**: Methods for atomically reading from and writing to JSON files.
-*   **Methods**:
-    *   `json.get`: Reads a JSON file and can assign its contents to a local variable. Params: `path`.
-    *   `json.set`: Writes or updates keys and values within a JSON file. Params: `path`, `json`.
-    *   `json.rm`: Removes an attribute from a JSON file. Params: `path`, `key`.
-
-#### **2.5 `input` - User Interaction**
-*   **Description**: Prompts the user for input via a modal dialog form. In our `ipywidgets` implementation, this will trigger the UI to display a form.
-*   **Syntax**:
-    ```json
-    {
-      "method": "input",
-      "params": {
-        "title": "Dialog Title",
-        "description": "A description of what is needed.",
-        "form": [
-          { "key": "variable_name", "title": "Field Label", "type": "text" }
-        ]
-      }
-    }
-    ```
-*   **Form Field Types**: `text`, `email`, `password`, `textarea`, `file`, `select`, `checkbox`.
-
-#### **2.6 Other Utility Methods**
-*   `local.set`: Sets a temporary local variable for the current script execution.
-*   `log`: Prints a message to the terminal log.
-*   `notify`: Displays a system notification.
-*   `web.open`: Opens a URL in the user's default web browser.
-*   `hf.download`: A specialized method for downloading files from Hugging Face.
+Each category has specific patterns and common dependencies that the SearchEngine can leverage for better relevance scoring.
 
 ---
 
-### **SECTION 3: THE MEMORY SYSTEM - COMPLETE VARIABLE REFERENCE**
+### **SECTION 5: MIGRATION INSIGHTS**
 
-This section details all the built-in memory variables that can be used within script parameters using the `{{variable_name}}` syntax. Our engine's variable substitution system must support all of these.
+#### **5.1 Key Differences in v2 Architecture**
+- **Environment Management**: v2 uses explicit Conda/venv management vs. Pinokio's simplified env API
+- **Process Execution**: v2 provides real-time streaming output vs. buffered output in v1
+- **State Management**: v2 uses SQLite for persistent state vs. file-based state in v1
+- **UI Framework**: v2 uses ipywidgets exclusively vs. web-based UI in v1
 
-*   `{{input}}`: The value returned from the immediately preceding step in the `run` array.
-*   `{{args.*}}`: Accesses parameters passed to the script via `script.start`. Example: `{{args.message}}`.
-*   `{{local.*}}`: Accesses temporary variables set by `local.set`. Example: `{{local.greeting}}`.
-*   `{{self}}`: The script object itself, providing access to its own properties.
-*   `{{cwd}}`: The absolute path to the current working directory of the script. In our system, this will be resolved by the `P01_PathMapper`.
-*   `{{port}}`: A utility that returns the next available network port on the system.
-*   `{{platform}}`: The host operating system. Resolves to `darwin` (macOS), `linux`, or `win32` (Windows). Our system will extend this to include cloud platform identifiers.
-*   `{{arch}}`: The system's CPU architecture (e.g., `x64`, `arm64`).
-*   `{{gpu}}`: An object containing information about the primary GPU, including `{{gpu.type}}` and `{{gpu.vram}}`.
-*   `{{envs.*}}`: Accesses system-wide environment variables. Example: `{{envs.HOME}}`.
+#### **5.2 Compatibility Considerations**
+- All Pinokio API calls must be translated to the new recipe format
+- Environment creation must be handled by the P04_EnvironmentManager
+- File operations require checksum validation and atomic operations
+- Shell commands must be executed through the P02_ProcessManager for proper streaming
 
 ---
 
-### **SECTION 4: PRACTICAL USAGE PATTERNS (THE CODE COOKBOOK)**
+### **SECTION 6: QUICK REFERENCE**
 
-This section provides a set of clean, practical code examples demonstrating common patterns that our engine must be able to handle.
+#### **6.1 API Translation Mapping**
+| Pinokio JS API | v2 Recipe Step Type |
+|----------------|-------------------|
+| `shell.run()` | `shell` |
+| `fs.download()` | `fs_download` |
+| `git.clone()` | `git` |
+| `env.create()` | `env_create` |
+| `env.activate()` | `env_activate` |
 
-*   **Pattern: Creating a Virtual Environment and Installing a Package**
-    ```json
-    {
-      "run": [{
-        "method": "shell.run",
-        "params": { "message": "python -m venv env" }
-      }, {
-        "method": "shell.run",
-        "params": {
-          "venv": "env",
-          "message": "pip install gradio"
-        }
-      }]
-    }
-    ```
+#### **6.2 Common Command Patterns**
+- **Python package installation**: `pip install -r requirements.txt`
+- **Node.js setup**: `npm install` or `yarn install`
+- **Model downloading**: `wget` or `curl` with checksum validation
+- **Service startup**: `python server.py` or `node app.js`
 
-*   **Pattern: Starting a Web Server as a Daemon**
-    ```json
-    {
-      "daemon": true,
-      "run": [{
-        "method": "shell.run",
-        "params": {
-          "venv": "env",
-          "message": "python server.py",
-          "on": [{
-            "event": "/Running on http:\\/\\/127.0.0.1:[0-9]+/",
-            "done": true
-          }]
-        }
-      }]
-    }
-    ```
+#### **6.3 Environment Types**
+- **Python**: `python3` - Creates Python virtual environments
+- **Conda**: `conda` - Creates Conda environments for complex dependencies
+- **Node**: `node` - Sets up Node.js environments
+- **System**: `system` - Uses system-wide package managers
 
-*   **Pattern: Dynamic, Context-Aware `pinokio.js` Launcher**
-    ```javascript
-    module.exports = {
-      menu: async (kernel) => {
-        let installed = await kernel.exists("app");
-        if (installed) {
-          let running = await kernel.script.running("start.json");
-          if (running) {
-            return [{ html: "Stop", click: () => kernel.script.stop("start.json") }];
-          } else {
-            return [{ html: "Start", href: "start.json" }];
-          }
-        } else {
-          return [{ html: "Install", href: "install.json" }];
-        }
-      }
-    }
-    ```
+---
 
-*   **Pattern: Conditional Execution Based on Platform**
-    ```json
-    {
-      "run": [{
-        "when": "{{platform === 'darwin'}}",
-        "method": "shell.run",
-        "params": { "message": "brew install ffmpeg" }
-      }, {
-        "when": "{{platform === 'linux'}}",
-        "method": "shell.run",
-        "params": { "message": "sudo apt-get install -y ffmpeg" }
-      }]
-    }
-    ```
+This document preserves the essential knowledge from the original Pinokio system while focusing on the patterns and concepts most relevant to the v2 rebuild implementation.

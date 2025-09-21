@@ -66,6 +66,7 @@ These are the specific, measurable standards for all code written for this proje
 #### **2.3 Naming & Readability**
 *   **`naming_and_readability`**: All class, method, and variable names must be descriptive and intention-revealing. Vague names like `data`, `info`, `temp`, `my_manager`, or `helper` are strictly forbidden. A class that manages application state must be named `StateManager`, not `DataHelper`.
 *   **`Phase-Prefix Mandate`**: Every new Python file you create as part of the repository's application code (`/app` directory) MUST be prefixed with its phase of origin (e.g., `P01_CloudDetector.py`, `P08_StateManager.py`). This is non-negotiable and provides a clear audit trail of the project's construction.
+*   **`Test File Naming Convention`**: All test files MUST follow the pattern `PXX-Test_ModuleName.py` where `PXX` is the phase number and `ModuleName` is the name of the module being tested. For example, a test file for `P01_CloudDetector.py` must be named `P01-Test_CloudDetector.py`. This ensures consistent organization and easy identification of test files.
 *   **`Test File Naming Convention`**: All test files in the `/App/Test` directory MUST follow the format `PXX-Test_ModuleName.py` (e.g., `P01-Test_CloudDetector.py`, `P04-Test_EnvironmentManager.py`). This ensures consistency with the phase-prefix mandate and makes test files easily identifiable. The format uses hyphens to separate the phase, the word "Test", and the module name being tested.
 
 #### **2.4 Architectural Mindset**

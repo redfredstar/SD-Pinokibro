@@ -32,7 +32,9 @@ class EnvironmentManager:
         platform_info (dict): Information about the detected platform
     """
 
-    def __init__(self, cloud_detector: Any, process_manager: Any, path_mapper: Any) -> None:
+    def __init__(
+        self, cloud_detector: Any, process_manager: Any, path_mapper: Any
+    ) -> None:
         """
         Initialize the EnvironmentManager with required dependencies.
 
@@ -46,11 +48,17 @@ class EnvironmentManager:
         """
         try:
             if not cloud_detector:
-                raise RuntimeError("EnvironmentManager requires a valid P01_CloudDetector instance")
+                raise RuntimeError(
+                    "EnvironmentManager requires a valid P01_CloudDetector instance"
+                )
             if not process_manager:
-                raise RuntimeError("EnvironmentManager requires a valid P02_ProcessManager instance")
+                raise RuntimeError(
+                    "EnvironmentManager requires a valid P02_ProcessManager instance"
+                )
             if not path_mapper:
-                raise RuntimeError("EnvironmentManager requires a valid P01_PathMapper instance")
+                raise RuntimeError(
+                    "EnvironmentManager requires a valid P01_PathMapper instance"
+                )
 
             self.cloud_detector = cloud_detector
             self.process_manager = process_manager
@@ -60,10 +68,10 @@ class EnvironmentManager:
             self.platform_info = self.cloud_detector.detect_platform()
 
             # Implement Conda-first, venv fallback strategy
-            if self.platform_info.get('platform_name') == 'LightningAI':
-                self.strategy = 'venv'
+            if self.platform_info.get("platform_name") == "LightningAI":
+                self.strategy = "venv"
             else:
-                self.strategy = 'conda'
+                self.strategy = "conda"
 
             # Get base path for environments
             self.env_path = Path(self.path_mapper.get_envs_path())
@@ -77,7 +85,9 @@ class EnvironmentManager:
             print(f"Traceback: {sys.exc_info()}")
             raise RuntimeError(error_msg) from e
 
-    def create(self, env_name: str, callback: Optional[Callable[[str], None]] = None) -> int:
+    def create(
+        self, env_name: str, callback: Optional[Callable[[str], None]] = None
+    ) -> int:
         """
         Create a new virtual environment using the appropriate strategy.
 
@@ -98,9 +108,9 @@ class EnvironmentManager:
 
             env_name = env_name.strip()
 
-            if self.strategy == 'conda':
+            if self.strategy == "conda":
                 command = f"conda create -n {env_name} python=3.10 -y"
-            elif self.strategy == 'venv':
+            elif self.strategy == "venv":
                 env_full_path = self.env_path / env_name
                 command = f"python -m venv {env_full_path}"
             else:
@@ -116,7 +126,9 @@ class EnvironmentManager:
 
             if exit_code == 0:
                 if callback:
-                    callback(f"SUCCESS: Environment '{env_name}' created successfully using {self.strategy}")
+                    callback(
+                        f"SUCCESS: Environment '{env_name}' created successfully using {self.strategy}"
+                    )
             else:
                 error_msg = f"Failed to create environment '{env_name}' with exit code {exit_code}"
                 if callback:
@@ -154,11 +166,11 @@ class EnvironmentManager:
 
             env_name = env_name.strip()
 
-            if self.strategy == 'conda':
+            if self.strategy == "conda":
                 return f"conda run -n {env_name} -- "
-            elif self.strategy == 'venv':
+            elif self.strategy == "venv":
                 env_full_path = self.env_path / env_name
-                if os.name == 'nt':  # Windows
+                if os.name == "nt":  # Windows
                     return f"{env_full_path}\\Scripts\\activate.bat && "
                 else:  # Unix/Linux
                     return f"source {env_full_path}/bin/activate && "
@@ -166,7 +178,9 @@ class EnvironmentManager:
                 raise RuntimeError(f"Unknown environment strategy: {self.strategy}")
 
         except Exception as e:
-            error_msg = f"Failed to get run prefix for environment '{env_name}': {str(e)}"
+            error_msg = (
+                f"Failed to get run prefix for environment '{env_name}': {str(e)}"
+            )
             print(f"ERROR: {error_msg}")
             print(f"Traceback: {sys.exc_info()}")
             raise RuntimeError(error_msg) from e
@@ -179,18 +193,20 @@ class EnvironmentManager:
             list: List of environment names
         """
         try:
-            if self.strategy == 'conda':
+            if self.strategy == "conda":
                 # List conda environments
                 exit_code = self.process_manager.shell_run("conda env list", print)
                 if exit_code != 0:
-                    print(f"WARNING: Failed to list conda environments, exit code: {exit_code}")
+                    print(
+                        f"WARNING: Failed to list conda environments, exit code: {exit_code}"
+                    )
                 return []  # Would need to parse output in a real implementation
-            elif self.strategy == 'venv':
+            elif self.strategy == "venv":
                 # List venv environments
                 envs = []
                 if self.env_path.exists():
                     for item in self.env_path.iterdir():
-                        if item.is_dir() and (item / 'bin' / 'activate').exists():
+                        if item.is_dir() and (item / "bin" / "activate").exists():
                             envs.append(item.name)
                 return envs
             else:
@@ -210,8 +226,8 @@ class EnvironmentManager:
             dict: Platform information including strategy and environment path
         """
         return {
-            'platform_info': self.platform_info,
-            'strategy': self.strategy,
-            'env_path': str(self.env_path),
-            'available_environments': self.list_environments()
+            "platform_info": self.platform_info,
+            "strategy": self.strategy,
+            "env_path": str(self.env_path),
+            "available_environments": self.list_environments(),
         }

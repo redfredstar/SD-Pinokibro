@@ -31,7 +31,7 @@ def create_mock_platform_info(base_path: str) -> PlatformInfo:
         gpu_info=None,
         memory_gb=8.0,
         cpu_count=4,
-        special_requirements=[]
+        special_requirements=[],
     )
 
 
@@ -40,67 +40,72 @@ def test_path_mapper():
     # Create a temporary directory for testing
     temp_dir = tempfile.mkdtemp()
     print(f"Testing with temporary directory: {temp_dir}")
-    
+
     try:
         # Create mock platform info
         platform_info = create_mock_platform_info(temp_dir)
-        
+
         # Instantiate the PathMapper
         path_mapper = P01_PathMapper(platform_info)
-        
+
         # Test all path methods
         print("\n=== Testing P01_PathMapper ===")
-        
+
         # Test base path
         base_path = path_mapper.get_base_path()
         print(f"Base Path: {base_path}")
         assert base_path.exists(), f"Base path does not exist: {base_path}"
-        assert base_path == Path(temp_dir), f"Base path mismatch: {base_path} != {temp_dir}"
-        
+        assert base_path == Path(
+            temp_dir
+        ), f"Base path mismatch: {base_path} != {temp_dir}"
+
         # Test apps path
         apps_path = path_mapper.get_apps_path()
         print(f"Apps Path: {apps_path}")
         assert apps_path.exists(), f"Apps path does not exist: {apps_path}"
         assert apps_path == Path(temp_dir) / "apps", f"Apps path mismatch: {apps_path}"
-        
+
         # Test data path
         data_path = path_mapper.get_data_path()
         print(f"Data Path: {data_path}")
         assert data_path.exists(), f"Data path does not exist: {data_path}"
         assert data_path == Path(temp_dir) / "data", f"Data path mismatch: {data_path}"
-        
+
         # Test temp path
         temp_path = path_mapper.get_temp_path()
         print(f"Temp Path: {temp_path}")
         assert temp_path.exists(), f"Temp path does not exist: {temp_path}"
         assert temp_path == Path(temp_dir) / "temp", f"Temp path mismatch: {temp_path}"
-        
+
         # Test config path
         config_path = path_mapper.get_config_path()
         print(f"Config Path: {config_path}")
         assert config_path.exists(), f"Config path does not exist: {config_path}"
-        assert config_path == Path(temp_dir) / "config", f"Config path mismatch: {config_path}"
-        
+        assert (
+            config_path == Path(temp_dir) / "config"
+        ), f"Config path mismatch: {config_path}"
+
         print("\n=== All Tests Passed! ===")
         print("All paths were correctly generated and directories were created.")
-        
+
         # Show directory structure
         print("\n=== Directory Structure ===")
         for item in Path(temp_dir).iterdir():
             if item.is_dir():
                 print(f"📁 {item.name}/")
-        
+
     except Exception as e:
         print(f"\n❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
-        
+
     finally:
         # Clean up the temporary directory
         shutil.rmtree(temp_dir)
         print(f"\nCleaned up temporary directory: {temp_dir}")
-    
+
     return True
 
 

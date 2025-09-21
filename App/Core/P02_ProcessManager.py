@@ -1,218 +1,340 @@
 """
-P02_ProcessManager.py - The All-Seeing Eye (Real-Time Monitoring Engine)
+app/core/P02_ProcessManager.py
+Real-Time Process Execution Engine
 
-This module implements the core "Maximum Debug" philosophy by providing a robust,
-non-blocking, and thread-safe engine for all subprocess execution. It captures and
-streams raw, unfiltered output from shell commands in real-time through a callback
-mechanism, enabling complete transparency for debugging purposes.
-
-Author: Pinokiobro Architect
-Phase: P02 - The All-Seeing Eye
+Implements the "Maximum Debug" philosophy through non-blocking process execution
+with real-time callback streaming. Built on asyncio for concurrency with thread-safe
+PID management.
 """
 
 import asyncio
-import threading
 import sys
-from typing import Dict, Callable, Optional, Any
-import logging
-from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, Callable, Optional, List
+from dataclasses import dataclass, field
+import threading
+import signal
+import os
 
 
 @dataclass
 class ProcessInfo:
-    """Data class to store information about active processes."""
+    """Container for process metadata and state."""
+
     pid: int
     command: str
-    status: str  # 'running', 'completed', 'failed', 'killed'
+    start_time: datetime
+    process_obj: asyncio.subprocess.Process
+    status: str = "running"  # "running", "completed", "failed", "killed"
+    exit_code: Optional[int] = None
+    cwd: Optional[str] = None
 
 
 class P02_ProcessManager:
     """
-    A robust, non-blocking process manager that executes shell commands and
-    streams their output in real-time through a callback mechanism.
-    
-    This class implements a dedicated background thread to run the asyncio event loop,
-    ensuring all async operations are truly non-blocking and can be safely called
-    from a synchronous environment like an ipywidgets callback.
+    Manages asynchronous subprocess execution with real-time output streaming.
+
+    Core features:
+    - Non-blocking command execution using asyncio
+    - Real-time stdout/stderr streaming via callbacks
+    - Thread-safe PID tracking and management
+    - Graceful and forced process termination
     """
-    
+
     def __init__(self):
-        """Initialize the ProcessManager with an empty process tracking dictionary."""
-        self.active_processes: Dict[int, ProcessInfo] = {}
-        self._event_loop = None
-        self._thread = None
-        self._start_event_loop()
-        
-    def _start_event_loop(self) -> None:
-        """
-        Start a dedicated background thread to run the asyncio event loop.
-        
-        This is a critical design choice that ensures all async operations within
-        the ProcessManager are truly non-blocking and can be safely called from
-        a synchronous environment.
-        """
+        """Initialize the ProcessManager with empty state tracking."""
+        self._active_processes: Dict[str, ProcessInfo] = {}
+        self._process_lock = threading.Lock()
+        self._pid_counter = 0
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._executor_thread: Optional[threading.Thread] = None
+        self._initialize_event_loop()
+
+    def _initialize_event_loop(self):
+        """Set up the asyncio event loop in a dedicated thread."""
+
         def run_loop():
-            """Run the asyncio event loop in a separate thread."""
-            self._event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._event_loop)
-            self._event_loop.run_forever()
-            
-        self._thread = threading.Thread(target=run_loop, daemon=True)
-        self._thread.start()
-        
-    def _run_async_task(self, coro) -> Any:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            self._loop.run_forever()
+
+        self._executor_thread = threading.Thread(target=run_loop, daemon=True)
+        self._executor_thread.start()
+
+        # Wait for loop initialization
+        while self._loop is None:
+            asyncio.sleep(0.01)
+
+    def shell_run(
+        self,
+        command: str,
+        callback: Callable[[str], None],
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+    ) -> int:
         """
-        Run an async coroutine in the dedicated event loop thread.
-        
+        Execute a shell command with real-time output streaming.
+
         Args:
-            coro: The asyncio coroutine to execute.
-            
+            command: Shell command to execute
+            callback: Function called for each line of output
+            cwd: Working directory for command execution
+            env: Environment variables for the process
+
         Returns:
-            The result of the coroutine execution.
+            Exit code of the process (0 for success, non-zero for failure)
         """
-        if not self._event_loop:
-            raise RuntimeError("Event loop not started")
-            
-        future = asyncio.run_coroutine_threadsafe(coro, self._event_loop)
+        # Run the async method in the dedicated event loop
+        future = asyncio.run_coroutine_threadsafe(
+            self._async_shell_run(command, callback, cwd, env), self._loop
+        )
         return future.result()
-        
-    async def _stream_output(self, process: asyncio.subprocess.Process, 
-                           callback: Callable[[str], None]) -> None:
-        """
-        Stream stdout and stderr from a process concurrently.
-        
-        This method uses asyncio.gather to read stdout and stderr concurrently,
-        guaranteeing that no output is missed and that the callback is invoked
-        in the correct chronological order.
-        
-        Args:
-            process: The asyncio subprocess object.
-            callback: Function to call with each line of output.
-        """
-        async def read_stream(stream, prefix: str = ""):
-            """Read lines from a stream and pass them to the callback."""
-            while True:
-                line = await stream.readline()
-                if not line:
-                    break
-                # Decode and pass the line to the callback with prefix
-                decoded_line = line.decode('utf-8', errors='replace').rstrip()
-                callback(f"{prefix}{decoded_line}")
-                
-        # Read both streams concurrently
-        await asyncio.gather(
-            read_stream(process.stdout, "STDOUT: "),
-            read_stream(process.stderr, "STDERR: ")
-        )
-        
-    def shell_run(self, command: str, callback: Callable[[str], None], 
-                  cwd: Optional[str] = None) -> int:
-        """
-        Execute a shell command non-blockingly and stream output in real-time.
-        
-        This method creates an asyncio subprocess, captures its PID for tracking,
-        and streams all output through the provided callback function.
-        
-        Args:
-            command: The shell command to execute.
-            callback: Function to call with each line of output.
-            cwd: Optional working directory for the command.
-            
-        Returns:
-            The Process ID (PID) of the created subprocess.
-            
-        Raises:
-            FileNotFoundError: If the command executable is not found.
-            PermissionError: If the command cannot be executed due to permissions.
-            RuntimeError: If the event loop is not running.
-        """
+
+    async def _async_shell_run(
+        self,
+        command: str,
+        callback: Callable[[str], None],
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+    ) -> int:
+        """Async implementation of shell_run."""
+        # Generate unique process identifier
+        with self._process_lock:
+            process_id = f"process_{self._pid_counter:03d}"
+            self._pid_counter += 1
+
+        # Prepare environment
+        if env is not None:
+            process_env = os.environ.copy()
+            process_env.update(env)
+        else:
+            process_env = None
+
         try:
-            # Run the async shell command in our dedicated event loop
-            pid = self._run_async_task(
-                self._async_shell_run(command, callback, cwd)
+            # Create subprocess
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=cwd,
+                env=process_env,
             )
-            return pid
+
+            # Store process info
+            process_info = ProcessInfo(
+                pid=process.pid,
+                command=command,
+                start_time=datetime.now(),
+                process_obj=process,
+                status="running",
+                cwd=cwd,
+            )
+
+            with self._process_lock:
+                self._active_processes[process_id] = process_info
+
+            # Stream output
+            streaming_task = asyncio.create_task(self._stream_output(process, callback))
+
+            # Wait for completion
+            exit_code = await process.wait()
+            await streaming_task
+
+            # Update process status
+            with self._process_lock:
+                self._active_processes[process_id].status = (
+                    "completed" if exit_code == 0 else "failed"
+                )
+                self._active_processes[process_id].exit_code = exit_code
+
+            return exit_code
+
+        except FileNotFoundError as e:
+            callback(f"[ERROR] Command not found: {command}")
+            callback(f"[ERROR] {str(e)}")
+            with self._process_lock:
+                if process_id in self._active_processes:
+                    self._active_processes[process_id].status = "failed"
+                    self._active_processes[process_id].exit_code = -1
+            return -1
+
+        except PermissionError as e:
+            callback(f"[ERROR] Permission denied: {command}")
+            callback(f"[ERROR] {str(e)}")
+            with self._process_lock:
+                if process_id in self._active_processes:
+                    self._active_processes[process_id].status = "failed"
+                    self._active_processes[process_id].exit_code = -1
+            return -1
+
         except Exception as e:
-            # Log the full traceback as per Maximum Debug philosophy
-            logging.error(f"Failed to execute command '{command}': {str(e)}", 
-                        exc_info=True)
-            raise
-            
-    async def _async_shell_run(self, command: str, callback: Callable[[str], None],
-                              cwd: Optional[str] = None) -> int:
+            callback(f"[ERROR] Unexpected error executing command: {command}")
+            callback(f"[ERROR] {type(e).__name__}: {str(e)}")
+            with self._process_lock:
+                if process_id in self._active_processes:
+                    self._active_processes[process_id].status = "failed"
+                    self._active_processes[process_id].exit_code = -1
+            return -1
+
+    async def _stream_output(
+        self, process: asyncio.subprocess.Process, callback: Callable[[str], None]
+    ):
         """
-        Async implementation of shell command execution.
-        
+        Stream output from both stdout and stderr concurrently.
+
         Args:
-            command: The shell command to execute.
-            callback: Function to call with each line of output.
-            cwd: Optional working directory for the command.
-            
-        Returns:
-            The Process ID (PID) of the created subprocess.
+            process: The subprocess to stream from
+            callback: Function to call with each line of output
         """
-        # Create the subprocess
-        process = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=cwd
+
+        async def read_stream(stream, stream_name: str):
+            """Read from a single stream and callback each line."""
+            if stream is None:
+                return
+
+            try:
+                while True:
+                    line = await stream.readline()
+                    if not line:
+                        break
+
+                    # Decode and clean the line
+                    decoded_line = line.decode("utf-8", errors="replace").rstrip("\n\r")
+
+                    # Prefix with stream type
+                    prefixed_line = f"[{stream_name}] {decoded_line}"
+
+                    # Invoke callback immediately
+                    callback(prefixed_line)
+
+            except Exception as e:
+                callback(f"[{stream_name}] Stream error: {str(e)}")
+
+        # Launch both stream readers concurrently
+        await asyncio.gather(
+            read_stream(process.stdout, "stdout"),
+            read_stream(process.stderr, "stderr"),
+            return_exceptions=True,
         )
-        
-        # Store process information for tracking
-        self.active_processes[process.pid] = ProcessInfo(
-            pid=process.pid,
-            command=command,
-            status='running'
-        )
-        
-        # Stream output in the background
-        asyncio.create_task(self._stream_output(process, callback))
-        
-        return process.pid
-        
-    def get_active_processes(self) -> Dict[int, ProcessInfo]:
+
+    def get_active_processes(self) -> Dict[str, int]:
         """
-        Get information about all currently active processes.
-        
+        Get a snapshot of currently running processes.
+
         Returns:
-            A dictionary mapping PIDs to ProcessInfo objects.
+            Dictionary mapping process IDs to PIDs
         """
-        return self.active_processes.copy()
-        
+        with self._process_lock:
+            return {
+                proc_id: proc_info.pid
+                for proc_id, proc_info in self._active_processes.items()
+                if proc_info.status == "running"
+            }
+
+    def get_all_processes(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get detailed information about all tracked processes.
+
+        Returns:
+            Dictionary with full process information
+        """
+        with self._process_lock:
+            result = {}
+            for proc_id, proc_info in self._active_processes.items():
+                result[proc_id] = {
+                    "pid": proc_info.pid,
+                    "command": proc_info.command,
+                    "status": proc_info.status,
+                    "start_time": proc_info.start_time.isoformat(),
+                    "exit_code": proc_info.exit_code,
+                    "cwd": proc_info.cwd,
+                }
+            return result
+
     def kill_process(self, pid: int) -> bool:
         """
-        Terminate a process by its PID.
-        
+        Terminate a process by PID.
+
         Args:
-            pid: The Process ID to terminate.
-            
+            pid: Process ID to terminate
+
         Returns:
-            True if the process was found and terminated, False otherwise.
+            True if process was successfully terminated, False otherwise
         """
-        if pid not in self.active_processes:
-            logging.warning(f"Process with PID {pid} not found in active processes")
+        future = asyncio.run_coroutine_threadsafe(
+            self._async_kill_process(pid), self._loop
+        )
+        return future.result()
+
+    async def _async_kill_process(self, pid: int) -> bool:
+        """Async implementation of kill_process."""
+        target_process = None
+        target_id = None
+
+        with self._process_lock:
+            for proc_id, proc_info in self._active_processes.items():
+                if proc_info.pid == pid and proc_info.status == "running":
+                    target_process = proc_info.process_obj
+                    target_id = proc_id
+                    break
+
+        if not target_process:
             return False
-            
+
         try:
-            import signal
-            # Send SIGTERM to terminate the process gracefully
-            import os
-            os.kill(pid, signal.SIGTERM)
-            
-            # Update process status
-            self.active_processes[pid].status = 'killed'
-            logging.info(f"Process {pid} terminated successfully")
+            # Graceful termination
+            target_process.terminate()
+
+            # Wait up to 5 seconds for graceful shutdown
+            try:
+                await asyncio.wait_for(target_process.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                # Force kill if graceful termination failed
+                target_process.kill()
+                await target_process.wait()
+
+            # Update status
+            with self._process_lock:
+                if target_id in self._active_processes:
+                    self._active_processes[target_id].status = "killed"
+
             return True
+
         except ProcessLookupError:
-            logging.warning(f"Process {pid} no longer exists")
-            # Remove from tracking if it doesn't exist
-            if pid in self.active_processes:
-                del self.active_processes[pid]
+            # Process already dead
+            with self._process_lock:
+                if target_id in self._active_processes:
+                    self._active_processes[target_id].status = "killed"
+            return True
+
+        except Exception:
             return False
-        except PermissionError:
-            logging.error(f"Permission denied when trying to kill process {pid}")
-            return False
-        except Exception as e:
-            logging.error(f"Failed to kill process {pid}: {str(e)}", exc_info=True)
-            return False
+
+    def cleanup_completed_processes(self):
+        """Remove completed/failed/killed processes from tracking."""
+        with self._process_lock:
+            to_remove = [
+                proc_id
+                for proc_id, proc_info in self._active_processes.items()
+                if proc_info.status in ["completed", "failed", "killed"]
+            ]
+            for proc_id in to_remove:
+                del self._active_processes[proc_id]
+
+    def shutdown(self):
+        """Clean shutdown of the ProcessManager."""
+        if self._loop and self._loop.is_running():
+            # Kill all active processes
+            active_pids = list(self.get_active_processes().values())
+            for pid in active_pids:
+                self.kill_process(pid)
+
+            # Stop the event loop
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            if self._executor_thread:
+                self._executor_thread.join(timeout=5)
+
+    def __del__(self):
+        """Ensure cleanup on deletion."""
+        self.shutdown()
