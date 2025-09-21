@@ -61,7 +61,11 @@ To ensure a complete and accurate understanding of the project's goals, architec
 *   **`App/Test/P05-Test_SearchEngine.py`** - **P05 Search Engine Test** - Test suite for application discovery engine. Tests weighted relevance ranking, search performance, multi-criteria filtering, and graceful error handling for malformed data.
 
 ### **Stage 2: The Installation Gauntlet (Phases P07-P12)**
-*   *(To be populated at the end of Phase P12)*
+*   **`app/core/P07_InstallManager.py`** - **P07 Installation Manager** - The core installation workhorse. It takes a standardized recipe, creates an isolated environment, and executes each step in sequence, dispatching tasks to the appropriate sub-manager (ProcessManager, FileManager) while streaming all output to the UI.
+*   **`app/core/P08_FileManager.py`** - **P08 File Manager** - A robust, production-grade module that implements the full suite of Pinokio `fs.*` API calls, including atomic file writes, recursive copies, and downloads with progress reporting.
+*   **`app/core/P08_StateManager.py`** - **P08 State Manager** - The single source of truth for the user's library. It manages an SQLite database to track the persistent state of all applications (e.g., INSTALLED, RUNNING, ERROR), ensuring data integrity.
+*   **`app/core/P11_LibraryManager.py`** - **P11 Library Manager** - The engine for all post-installation actions. It orchestrates complex workflows like uninstallation, which involves removing the environment, deleting application files, and updating the state database.
+*   **`app/Test/P12-Test_Stage2_E2E.py`** - **P12 Stage 2 E2E Test** - An end-to-end integration test that validates the `P07_InstallManager`'s ability to correctly process a multi-step recipe and delegate tasks to underlying managers.
 
 ### **Stage 3: The Launch Sequence (Phases P13-P18)**
 *   *(To be populated at the end of Phase P18)*
