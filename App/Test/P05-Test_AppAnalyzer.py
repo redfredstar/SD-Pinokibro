@@ -57,11 +57,11 @@ def test_app_analyzer_initialization():
         assert ".json" in analyzer.supported_installer_types
         assert ".txt" in analyzer.supported_installer_types
 
-        print("✓ AppAnalyzer initialization test passed")
+        print("[PASS] AppAnalyzer initialization test passed")
         return True
 
     except Exception as e:
-        print(f"✗ AppAnalyzer initialization test failed: {str(e)}")
+        print(f"[FAIL] AppAnalyzer initialization test failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -117,11 +117,11 @@ def test_analyze_app_basic():
         assert "python_packages" in result["dependencies"]
         assert "system_packages" in result["dependencies"]
 
-        print("✓ Basic app analysis test passed")
+        print("[PASS] Basic app analysis test passed")
         return True
 
     except Exception as e:
-        print(f"✗ Basic app analysis test failed: {str(e)}")
+        print(f"[FAIL] Basic app analysis test failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -179,7 +179,7 @@ def test_dependency_checking():
             assert found_numpy, "Should detect numpy package"
             assert found_ffmpeg, "Should detect ffmpeg package"
 
-            print("✓ Dependency checking test passed")
+            print("[PASS] Dependency checking test passed")
             return True
 
         finally:
@@ -188,7 +188,7 @@ def test_dependency_checking():
                 os.unlink(temp_file_path)
 
     except Exception as e:
-        print(f"✗ Dependency checking test failed: {str(e)}")
+        print(f"[FAIL] Dependency checking test failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -240,11 +240,11 @@ def test_resource_estimation():
         )  # Should be high due to model.bin
         assert len(estimates["high_intensity_indicators"]) > 0
 
-        print("✓ Resource estimation test passed")
+        print("[PASS] Resource estimation test passed")
         return True
 
     except Exception as e:
-        print(f"✗ Resource estimation test failed: {str(e)}")
+        print(f"[FAIL] Resource estimation test failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -287,11 +287,11 @@ def test_installer_validation():
         assert result["installer_url_accessible"] == False
         assert len(result["issues"]) > 0
 
-        print("✓ Installer validation test passed")
+        print("[PASS] Installer validation test passed")
         return True
 
     except Exception as e:
-        print(f"✗ Installer validation test failed: {str(e)}")
+        print(f"[FAIL] Installer validation test failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -317,7 +317,7 @@ def test_error_handling():
             assert False, "Should have raised an exception"
         except Exception as e:
             assert "install_url" in str(e)
-            print(f"✓ Correctly caught missing install_url error: {str(e)}")
+            print(f"[PASS] Correctly caught missing install_url error: {str(e)}")
 
         # Test with invalid URL
         app_data_invalid_url = {
@@ -331,13 +331,13 @@ def test_error_handling():
                 assert False, "Should have raised an exception"
             except Exception as e:
                 assert "Network error" in str(e) or "failed" in str(e)
-                print(f"✓ Correctly caught network error: {str(e)}")
+                print(f"[PASS] Correctly caught network error: {str(e)}")
 
-        print("✓ Error handling test passed")
+        print("[PASS] Error handling test passed")
         return True
 
     except Exception as e:
-        print(f"✗ Error handling test failed: {str(e)}")
+        print(f"[FAIL] Error handling test failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
