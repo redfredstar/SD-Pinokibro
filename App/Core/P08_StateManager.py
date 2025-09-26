@@ -334,13 +334,18 @@ class P08_StateManager:
                 raise Exception(f"Failed to get applications with status '{status}': "
                               f"{str(e)}\n{traceback.format_exc()}")
 
-    def cleanup_database(self) -> None:
+    def set_app_public_url(self, app_name: str, public_url: str) -> None:
         """
-        Perform database maintenance and cleanup operations.
-        
-        Removes stale records and optimizes the database. This method can be
-        called periodically for maintenance purposes.
-        
+        Update an application's public tunnel URL in the database.
+
+        Atomically updates the application's tunnel_url field and refreshes
+        the updated_at timestamp. This method is called when a tunnel is
+        successfully created for a running application.
+
+        Args:
+            app_name: Name of the application to update
+            public_url: The public tunnel URL to store
+
         Raises:
             Exception: Re-raises all database errors with full tracebacks
         """
@@ -348,19 +353,49 @@ class P08_StateManager:
             try:
                 with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
                     cursor = conn.cursor()
-                    
+
+                    cursor.execute('''
+                        UPDATE applications
+                        SET tunnel_url = ?, updated_at = ?
+                        WHERE app_name = ?
+                    ''', (public_url, datetime.now().isoformat(), app_name))
+
+                    if cursor.rowcount == 0:
+                        raise Exception(f"Application '{app_name}' not found in database")
+
+                    conn.commit()
+
+            except Exception as e:
+                raise Exception(f"Failed to set public URL for application '{app_name}': "
+                              f"{str(e)}\n{traceback.format_exc()}")
+
+    def cleanup_database(self) -> None:
+        """
+        Perform database maintenance and cleanup operations.
+
+        Removes stale records and optimizes the database. This method can be
+        called periodically for maintenance purposes.
+
+        Raises:
+            Exception: Re-raises all database errors with full tracebacks
+        """
+        with self.lock:
+            try:
+                with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
+                    cursor = conn.cursor()
+
                     # Remove applications with ERROR status older than 30 days
                     cursor.execute('''
-                        DELETE FROM applications 
-                        WHERE status = 'ERROR' 
+                        DELETE FROM applications
+                        WHERE status = 'ERROR'
                         AND datetime(updated_at) < datetime('now', '-30 days')
                     ''')
-                    
+
                     # Vacuum database to reclaim space
                     cursor.execute('VACUUM')
-                    
+
                     conn.commit()
-                    
+
             except Exception as e:
                 raise Exception(f"Database cleanup failed: "
                               f"{str(e)}\n{traceback.format_exc()}")

@@ -1,0 +1,1 @@
+*   **`App/Core/P04_EnvironmentManager.py`** - **P04 Environment Manager** - Purpose: To manage Python environment creation and configuration with a Conda-first, venv fallback strategy. Validation: Its reliability was validated by the **Concurrent Operations Stress Test**, where multiple application environments were created and managed serially without failure.
