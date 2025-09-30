@@ -180,14 +180,21 @@ class CloudDetector:
         """
         Detect Lightning AI environment.
 
-        Checks for the presence of LIGHTNING_APP_STATE_URL environment variable
-        which is specific to Lightning AI platform.
+        Checks for the presence of Lightning AI specific environment variables:
+        - LIGHTNING_CLOUD_SPACE_ID (Lightning Cloud)
+        - LIGHTNING_NODE_ID (Lightning Compute)
+        - LIGHTNING_APP_STATE_URL (Legacy detection)
 
         Returns:
             bool: True if running on Lightning AI, False otherwise.
         """
         try:
-            return "LIGHTNING_APP_STATE_URL" in os.environ
+            # Enhanced Lightning.ai detection for both Cloud and Compute platforms
+            return (
+                "LIGHTNING_CLOUD_SPACE_ID" in os.environ or
+                "LIGHTNING_NODE_ID" in os.environ or
+                "LIGHTNING_APP_STATE_URL" in os.environ
+            )
         except Exception as e:
             import traceback
 
